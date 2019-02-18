@@ -7,6 +7,8 @@ import android.provider.BaseColumns;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +25,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String TAG = "DBDEMO";
 
     private StudentInfoDbHelper mDbHelper;
+    private RecyclerView recyclerView;
+    private MyListAdapter myListAdapter;
+    private List<StudentInfo> allList;
+    private List<StudentInfo> resultList;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,12 +41,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btn_update = findViewById(R.id.btn_update);
         Button btn_query = findViewById(R.id.btn_query);
 
+        mDbHelper = new StudentInfoDbHelper(getApplicationContext());
+
+        allList = getAllData();
+
+        myListAdapter = new MyListAdapter(allList);
+        recyclerView = findViewById(R.id.my_recycleview);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(myListAdapter);
+
         btn_add.setOnClickListener(this);
         btn_delete.setOnClickListener(this);
         btn_update.setOnClickListener(this);
         btn_query.setOnClickListener(this);
-
-        mDbHelper = new StudentInfoDbHelper(getApplicationContext());
     }
 
     @Override
@@ -85,6 +99,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     + name, Toast.LENGTH_SHORT).show();
 
             Log.i(TAG, "add data: " + "id is " + id + " name is " + name);
+
+            allList = getAllData();
+            myListAdapter.notifyDataSetChanged();
         } else {
             Toast.makeText(getApplicationContext(), "Data should not be null or id existed", Toast.LENGTH_LONG).show();
             dialog.getDialog().cancel();
@@ -155,7 +172,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         String[] idSelectionArgs = {id};
 
         String sortOrder = BaseColumns._ID + " ASC";
-        List<StudentInfo> retList = new ArrayList<>();
+        resultList = new ArrayList<>();
         if (id.isEmpty() && name.isEmpty()) {
             Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
             dialog.getDialog().cancel();
@@ -174,7 +191,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
                 name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
                 id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
-                retList.add(new StudentInfo(index, id, name));
+                resultList.add(new StudentInfo(index, id, name));
                 Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
             }
             cursor.close();
@@ -193,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
                 name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
                 id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
-                retList.add(new StudentInfo(index, id, name));
+                resultList.add(new StudentInfo(index, id, name));
                 Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
             }
             cursor.close();
@@ -212,11 +229,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
                 name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
                 id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
-                retList.add(new StudentInfo(index, id, name));
+                resultList.add(new StudentInfo(index, id, name));
                 Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
             }
             cursor.close();
         }
+        myListAdapter.notifyDataSetChanged();
+    }
+
+    private List<StudentInfo> getAllData() {
+        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+        List<StudentInfo> allData = new ArrayList<>();
+        String name;
+        String id;
+        Cursor cursor = db.query(
+                StudentInfoContract.StudentEntry.TABLE_NAME,
+                null,
+                null,
+                null,
+                null,
+                null,
+                BaseColumns._ID + " ASC");
+        while (cursor.moveToNext()) {
+            long index = cursor.getLong(
+                    cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
+            name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
+            id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
+            allData.add(new StudentInfo(index, id, name));
+            Log.i(TAG, "all data: " + index + " - " + name + " - " + id);
+        }
+        cursor.close();
+        return allData;
     }
 
     private boolean checkIdExist(String id) {
