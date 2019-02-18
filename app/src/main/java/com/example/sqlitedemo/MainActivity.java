@@ -4,12 +4,12 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.provider.BaseColumns;
+import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.sqlitedemo.db.StudentInfoContract;
@@ -18,7 +18,9 @@ import com.example.sqlitedemo.db.StudentInfoDbHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, StudentInfoDialogFragment.AddDialogListener {
+
+    private static final String TAG = "DBDEMO";
 
     private StudentInfoDbHelper mDbHelper;
 
@@ -50,84 +52,183 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_add:
-                addStudentInfo();
+                DialogFragment addFragment = StudentInfoDialogFragment.newInstance("Add");
+                addFragment.show(getSupportFragmentManager(), "add");
                 break;
             case R.id.btn_delete:
-                deleteStudentInfo();
+                DialogFragment deleteFragment = StudentInfoDialogFragment.newInstance("Delete");
+                deleteFragment.show(getSupportFragmentManager(), "delete");
                 break;
             case R.id.btn_update:
-                updateStudentInfo();
+                DialogFragment updateFragment = StudentInfoDialogFragment.newInstance("Update");
+                updateFragment.show(getSupportFragmentManager(), "update");
                 break;
             case R.id.btn_query:
-                queryStudentInfo();
+                DialogFragment queryFragment = StudentInfoDialogFragment.newInstance("Query");
+                queryFragment.show(getSupportFragmentManager(), "query");
                 break;
             default:
                 break;
         }
     }
 
-    private void addStudentInfo() {
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+    private void addStudentInfo(DialogFragment dialog, String id, String name) {
+        if (!id.isEmpty() && !name.isEmpty() && !checkIdExist(id)) {
+            SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
+            ContentValues values = new ContentValues();
+            values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID, id);
+            values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME, name);
+
+            db.insert(StudentInfoContract.StudentEntry.TABLE_NAME, null, values);
+            Toast.makeText(getApplicationContext(), "Add new data: " + "id is " + id + " name is "
+                    + name, Toast.LENGTH_SHORT).show();
+
+            Log.i(TAG, "add data: " + "id is " + id + " name is " + name);
+        } else {
+            Toast.makeText(getApplicationContext(), "Data should not be null or id existed", Toast.LENGTH_LONG).show();
+            dialog.getDialog().cancel();
+        }
+    }
+
+    private void deleteStudentInfo(DialogFragment dialog, String id, String name) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+        String nameSelection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME + " = ?";
+        String[] nameSelectionArgs = {name};
+        String idSelection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID + " = ?";
+        String[] idSelectionArgs = {id};
+
+        if (id.isEmpty() && name.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
+            dialog.getDialog().cancel();
+        } else if (id.isEmpty()) {
+            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, nameSelection, nameSelectionArgs);
+            Toast.makeText(getApplicationContext(), "Data delete: " + " name is "
+                    + name, Toast.LENGTH_LONG).show();
+        } else if (name.isEmpty()) {
+            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, idSelection, idSelectionArgs);
+            Toast.makeText(getApplicationContext(), "Data delete: " + "id is "
+                    + id, Toast.LENGTH_LONG).show();
+        } else {
+            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME,
+                    idSelection + " and " + nameSelection, new String[]{id, name});
+            Toast.makeText(getApplicationContext(), "Data delete: " + "id is " + id + " name is "
+                    + name, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void updateStudentInfo(DialogFragment dialog, String id, String name) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+        String idSelection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID + " = ?";
+        String[] idSelectionArgs = {id};
         ContentValues values = new ContentValues();
-        values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID, "U20191101");
-        values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME, "Tom");
+        values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME, name);
 
-        long newRowId = db.insert(StudentInfoContract.StudentEntry.TABLE_NAME, null, values);
-        Log.i("add data", "success");
+        if (id.isEmpty() || name.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
+            dialog.getDialog().cancel();
+        } else if (checkIdExist(id)) {
+            db.update(
+                    StudentInfoContract.StudentEntry.TABLE_NAME,
+                    values,
+                    idSelection,
+                    idSelectionArgs);
+            Toast.makeText(getApplicationContext(), "Data update: " + "id is " + id + " name is "
+                    + name, Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(getApplicationContext(), "Data not exist", Toast.LENGTH_LONG).show();
+            dialog.getDialog().cancel();
+        }
     }
 
-    private void deleteStudentInfo() {
-        StudentInfoDbHelper mDbHelper = new StudentInfoDbHelper(getApplicationContext());
-
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
-// Define 'where' part of query.
-        String selection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME + " LIKE ?";
-// Specify arguments in placeholder order.
-        String[] selectionArgs = { "Tom" };
-// Issue SQL statement.
-        int deletedRows = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, selection, selectionArgs);
-    }
-
-    private void updateStudentInfo() {
-        StudentInfoDbHelper mDbHelper = new StudentInfoDbHelper(getApplicationContext());
-
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
-
-// New value for one column
-        String title = "212121";
-        ContentValues values = new ContentValues();
-        values.put(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID, title);
-
-// Which row to update, based on the title
-        String selection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME + " LIKE ?";
-        String[] selectionArgs = { "Tom" };
-
-        int count = db.update(
-                StudentInfoContract.StudentEntry.TABLE_NAME,
-                values,
-                selection,
-                selectionArgs);
-    }
-
-    private void queryStudentInfo() {
-
-        StudentInfoDbHelper mDbHelper = new StudentInfoDbHelper(getApplicationContext());
+    private void queryStudentInfo(DialogFragment dialog, String id, String name) {
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
-// Define a projection that specifies which columns from the database
-// you will actually use after this query.
         String[] projection = {
                 BaseColumns._ID,
                 StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID,
                 StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME
         };
+        String nameSelection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME + " = ?";
+        String[] nameSelectionArgs = {name};
+        String idSelection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID + " = ?";
+        String[] idSelectionArgs = {id};
 
-// Filter results WHERE "title" = 'My Title'
-        String selection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME + " = ?";
-        String[] selectionArgs = {"Tom"};
+        String sortOrder = BaseColumns._ID + " ASC";
+        List<StudentInfo> retList = new ArrayList<>();
+        if (id.isEmpty() && name.isEmpty()) {
+            Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
+            dialog.getDialog().cancel();
+        } else if (id.isEmpty()) {
+            Cursor cursor = db.query(
+                    StudentInfoContract.StudentEntry.TABLE_NAME,   // The table to query
+                    projection,             // The array of columns to return (pass null to get all)
+                    nameSelection,              // The columns for the WHERE clause
+                    nameSelectionArgs,          // The values for the WHERE clause
+                    null,                   // don't group the rows
+                    null,                   // don't filter by row groups
+                    sortOrder               // The sort order
+            );
+            while (cursor.moveToNext()) {
+                long index = cursor.getLong(
+                        cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
+                name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
+                id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
+                retList.add(new StudentInfo(index, id, name));
+                Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
+            }
+            cursor.close();
+        } else if (name.isEmpty()) {
+            Cursor cursor = db.query(
+                    StudentInfoContract.StudentEntry.TABLE_NAME,   // The table to query
+                    projection,             // The array of columns to return (pass null to get all)
+                    idSelection,              // The columns for the WHERE clause
+                    idSelectionArgs,          // The values for the WHERE clause
+                    null,                   // don't group the rows
+                    null,                   // don't filter by row groups
+                    sortOrder               // The sort order
+            );
+            while (cursor.moveToNext()) {
+                long index = cursor.getLong(
+                        cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
+                name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
+                id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
+                retList.add(new StudentInfo(index, id, name));
+                Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
+            }
+            cursor.close();
+        } else {
+            Cursor cursor = db.query(
+                    StudentInfoContract.StudentEntry.TABLE_NAME,
+                    projection,
+                    idSelection + " and " + nameSelection,
+                    new String[]{id, name},
+                    null,
+                    null,
+                    sortOrder
+            );
+            while (cursor.moveToNext()) {
+                long index = cursor.getLong(
+                        cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
+                name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
+                id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
+                retList.add(new StudentInfo(index, id, name));
+                Log.i(TAG, "query data: " + index + " - " + name + " - " + id);
+            }
+            cursor.close();
+        }
+    }
 
-// How you want the results sorted in the resulting Cursor
+    private boolean checkIdExist(String id) {
+        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+
+        String[] projection = {
+                StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID
+        };
+
+        String selection = StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID + " = ?";
+        String[] selectionArgs = {id};
+
         String sortOrder =
                 StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID + " DESC";
 
@@ -140,14 +241,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 null,                   // don't filter by row groups
                 sortOrder               // The sort order
         );
+
         while (cursor.moveToNext()) {
-            long itemId = cursor.getLong(
-                    cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
-            String name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
-            String id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
-            Log.i("read data", "db data: " + itemId + " - " + name + " - " + id);
+            return true;
         }
         cursor.close();
+        return false;
     }
 
+    @Override
+    public void onDialogPositiveClick(DialogFragment dialog, String id, String name) {
+
+        assert dialog.getTag() != null;
+        switch (dialog.getTag()) {
+            case "add":
+                addStudentInfo(dialog, id, name);
+                break;
+            case "delete":
+                deleteStudentInfo(dialog, id, name);
+                break;
+            case "update":
+                updateStudentInfo(dialog, id, name);
+                break;
+            case "query":
+                queryStudentInfo(dialog, id, name);
+                break;
+            default:
+                break;
+        }
+
+    }
+
+    @Override
+    public void onDialogNegativeClick(DialogFragment dialog) {
+        dialog.getDialog().cancel();
+    }
 }
