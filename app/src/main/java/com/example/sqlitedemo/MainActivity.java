@@ -128,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             dialog.getDialog().cancel();
         } else if (id.isEmpty()) {
             int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, nameSelection, nameSelectionArgs);
-            if (resultId == -1){
+            if (resultId <= 0){
                 Toast.makeText(getApplicationContext(), "Can't find data:" + " name is "
                         + name, Toast.LENGTH_LONG).show();
             }else {
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         } else if (name.isEmpty()) {
             int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, idSelection, idSelectionArgs);
-            if (resultId == -1){
+            if (resultId <= 0){
                 Toast.makeText(getApplicationContext(), "Can't find data:" + " id is "
                         + id, Toast.LENGTH_LONG).show();
             }else {
@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME,
                     idSelection + " and " + nameSelection, new String[]{id, name});
-            if (resultId == -1){
+            if (resultId <= 0){
                 Toast.makeText(getApplicationContext(), "Can't find data:" + " id is " + id
                         + " name is " + name, Toast.LENGTH_LONG).show();
             }else {
