@@ -27,6 +27,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private StudentInfoDbHelper mDbHelper;
     private RecyclerView recyclerView;
     private MyListAdapter myListAdapter;
+    private RecyclerView queryView;
+    private MyListAdapter queryAdapter;
     private List<StudentInfo> allList;
     private List<StudentInfo> resultList;
 
@@ -41,19 +43,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btn_update = findViewById(R.id.btn_update);
         Button btn_query = findViewById(R.id.btn_query);
 
-        mDbHelper = new StudentInfoDbHelper(getApplicationContext());
+        btn_add.setOnClickListener(this);
+        btn_delete.setOnClickListener(this);
+        btn_update.setOnClickListener(this);
+        btn_query.setOnClickListener(this);
 
-        allList = getAllData();
+        mDbHelper = new StudentInfoDbHelper(getApplicationContext());
+        allList = new ArrayList<>();
+        getAllData();
 
         myListAdapter = new MyListAdapter(allList);
         recyclerView = findViewById(R.id.my_recycleview);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(myListAdapter);
 
-        btn_add.setOnClickListener(this);
-        btn_delete.setOnClickListener(this);
-        btn_update.setOnClickListener(this);
-        btn_query.setOnClickListener(this);
+        resultList = new ArrayList<>();
+        queryAdapter = new MyListAdapter(resultList);
+        queryView = findViewById(R.id.query_view);
+        queryView.setLayoutManager(new LinearLayoutManager(this));
+        queryView.setAdapter(queryAdapter);
     }
 
     @Override
@@ -100,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             Log.i(TAG, "add data: " + "id is " + id + " name is " + name);
 
-            allList = getAllData();
+            getAllData();
             myListAdapter.notifyDataSetChanged();
         } else {
             Toast.makeText(getApplicationContext(), "Data should not be null or id existed", Toast.LENGTH_LONG).show();
@@ -119,18 +127,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
             dialog.getDialog().cancel();
         } else if (id.isEmpty()) {
-            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, nameSelection, nameSelectionArgs);
-            Toast.makeText(getApplicationContext(), "Data delete: " + " name is "
-                    + name, Toast.LENGTH_LONG).show();
+            int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, nameSelection, nameSelectionArgs);
+            if (resultId == -1){
+                Toast.makeText(getApplicationContext(), "Can't find data:" + " name is "
+                        + name, Toast.LENGTH_LONG).show();
+            }else {
+                Toast.makeText(getApplicationContext(), "Delete data success", Toast.LENGTH_SHORT).show();
+                getAllData();
+                myListAdapter.notifyDataSetChanged();
+            }
         } else if (name.isEmpty()) {
-            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, idSelection, idSelectionArgs);
-            Toast.makeText(getApplicationContext(), "Data delete: " + "id is "
-                    + id, Toast.LENGTH_LONG).show();
+            int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME, idSelection, idSelectionArgs);
+            if (resultId == -1){
+                Toast.makeText(getApplicationContext(), "Can't find data:" + " id is "
+                        + id, Toast.LENGTH_LONG).show();
+            }else {
+                Toast.makeText(getApplicationContext(), "Delete data success", Toast.LENGTH_SHORT).show();
+                getAllData();
+                myListAdapter.notifyDataSetChanged();
+            }
         } else {
-            db.delete(StudentInfoContract.StudentEntry.TABLE_NAME,
+            int resultId = db.delete(StudentInfoContract.StudentEntry.TABLE_NAME,
                     idSelection + " and " + nameSelection, new String[]{id, name});
-            Toast.makeText(getApplicationContext(), "Data delete: " + "id is " + id + " name is "
-                    + name, Toast.LENGTH_LONG).show();
+            if (resultId == -1){
+                Toast.makeText(getApplicationContext(), "Can't find data:" + " id is " + id
+                        + " name is " + name, Toast.LENGTH_LONG).show();
+            }else {
+                Toast.makeText(getApplicationContext(), "Delete data success", Toast.LENGTH_SHORT).show();
+                getAllData();
+                myListAdapter.notifyDataSetChanged();
+            }
         }
     }
 
@@ -152,6 +178,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     idSelectionArgs);
             Toast.makeText(getApplicationContext(), "Data update: " + "id is " + id + " name is "
                     + name, Toast.LENGTH_LONG).show();
+            getAllData();
+            myListAdapter.notifyDataSetChanged();
         } else {
             Toast.makeText(getApplicationContext(), "Data not exist", Toast.LENGTH_LONG).show();
             dialog.getDialog().cancel();
@@ -159,6 +187,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void queryStudentInfo(DialogFragment dialog, String id, String name) {
+        resultList.clear();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         String[] projection = {
@@ -172,7 +201,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         String[] idSelectionArgs = {id};
 
         String sortOrder = BaseColumns._ID + " ASC";
-        resultList = new ArrayList<>();
         if (id.isEmpty() && name.isEmpty()) {
             Toast.makeText(getApplicationContext(), "Data should not be null", Toast.LENGTH_LONG).show();
             dialog.getDialog().cancel();
@@ -234,12 +262,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
             cursor.close();
         }
-        myListAdapter.notifyDataSetChanged();
+        if (resultList.isEmpty()){
+            Toast.makeText(getApplicationContext(), "Can't find data", Toast.LENGTH_SHORT).show();
+        }else {
+            queryAdapter.notifyDataSetChanged();
+        }
     }
 
-    private List<StudentInfo> getAllData() {
+    private void getAllData() {
+        allList.clear();
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
-        List<StudentInfo> allData = new ArrayList<>();
         String name;
         String id;
         Cursor cursor = db.query(
@@ -255,11 +287,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     cursor.getColumnIndexOrThrow(StudentInfoContract.StudentEntry._ID));
             name = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_NAME));
             id = cursor.getString(cursor.getColumnIndex(StudentInfoContract.StudentEntry.COLUMN_NAME_STUDENT_ID));
-            allData.add(new StudentInfo(index, id, name));
+            allList.add(new StudentInfo(index, id, name));
             Log.i(TAG, "all data: " + index + " - " + name + " - " + id);
         }
         cursor.close();
-        return allData;
     }
 
     private boolean checkIdExist(String id) {

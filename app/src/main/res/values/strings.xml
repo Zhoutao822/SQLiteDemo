@@ -3,4 +3,10 @@
     <string name="add_info">Student Info</string>
     <string name="id">ID</string>
     <string name="name">Name</string>
+    <string name="add">add</string>
+    <string name="delete">delete</string>
+    <string name="update">update</string>
+    <string name="query">query</string>
+    <string name="all_data_in_database">All data in Database:</string>
+    <string name="index">Index</string>
 </resources>
